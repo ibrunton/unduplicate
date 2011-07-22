@@ -1,0 +1,7 @@
+This program is designed to find all duplicate files in the current
+directory.  It first checks for duplicate file sizes.  If it finds any,
+the program then checks those duplicates with md5 hashes.  If any md5
+hashes are duplicated, the program prompts the user to delete one or
+more files, move one or more files, or skip.
+
+This is an exercise in learning C.
