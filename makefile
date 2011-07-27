@@ -1,2 +1,2 @@
 all :
-	gcc -o findups dups.c
+	gcc -o findups -g dups.c
