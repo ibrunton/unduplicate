@@ -29,16 +29,42 @@ typedef struct dupenode {
 
 dupenode* dupewalker;
 
+char *programName;
+char directory [256];
+int prompt;
+
 signed int addToDupes (filenode *fname, size_t fsize, dupenode *dupe);
 signed int dupeInit (dupenode *dupe);
+signed int dupeMenu ();
 signed int getMD5 (dupenode *dupe, char *filename);
+void printUsage ();
 
 int main (int argc, char *argv[])
 {
-  /* get pwd */
-  char pwd [256];
-  getcwd (pwd, sizeof (pwd));
-  printf ("pwd = %s\n", pwd);
+  programName = malloc (sizeof (argv[0]));
+  strcpy (programName, argv[0]);
+
+  getcwd (directory, sizeof (directory));
+
+  /* get options */
+  int i;
+  for (i = 1; i < argc; i++) {
+    if (argv[i][0] == '-') {
+      switch (argv[i][1]) {
+      case 'p':
+	prompt = 1;
+	break;
+      default:
+	fprintf (stderr, "Unknown option: %s\n", argv[i]);
+	return 1;
+      }
+    }
+    else { /* is directory argument */
+      strcpy (directory, argv[i]);
+    }
+  }
+
+  printf ("directory = %s\n", directory);
 
   /* set up linked list of files */
   filenode* firstFileNode = NULL;
@@ -76,7 +102,7 @@ int main (int argc, char *argv[])
   struct dirent *ent;
   struct stat *fileattr = malloc (sizeof (struct stat));
 
-  dir = opendir (pwd);
+  dir = opendir (directory);
   while ((ent = readdir (dir)) != NULL) {
     ++file_count;
     if (stat (ent->d_name, fileattr) == 0) {
@@ -126,25 +152,38 @@ int main (int argc, char *argv[])
   closedir (dir);
   free (fileattr);
 
+  /* output list of duplicate files */
   dupewalker = firstDupeNode;
   int n;
+  signed int dupe_action;
   while (dupewalker->next != NULL) {
     if (dupewalker->num_dupes > 1) {
       printf ("For size %d (%d):\n", dupewalker->size, dupewalker->num_dupes);
       for (n = 0; n < dupewalker->num_dupes; n++) {
-	printf ("\t%s\n", dupewalker->duplicates[n]->file_name);
+	printf ("%d:\t%s\n", n + 1, dupewalker->duplicates[n]->file_name);
       }
+      if (prompt == 1) {
+	dupe_action = dupeMenu ();
+	if (dupe_action > 0) { /* delete */
+	  printf ("Deleting file %s...\n",
+		  dupewalker->duplicates[dupe_action - 1]->file_name);
+	  /* remove (dupewalker->duplicates[dupe_action -1]->file_name); */
+	}
+	else if (dupe_action < 0) { /* move */
+	  printf ("Moving file %s...\n",
+		  dupewalker->duplicates[(dupe_action + ((0 - dupe_action) * 2)) - 1]->file_name);
+	}
+	else {
+	  printf ("Skipping.\n");
+	}
+      }
+
       printf ("\n");
     }
 
     dupewalker = dupewalker->next;
   }
 
-  /* remove any non-duplicates from list */
-  /* for each duplicate, compare md5 hashes */
-  /* if md5s match, prompt user with both file names */
-  /* give option to delete either, move to another folder, or skip */
-  
   /* cleanup */
   free (newDupeNode);
   free (newFileNode);
@@ -178,7 +217,41 @@ signed int dupeInit (dupenode *dupe)
   return 0;
 }
 
+signed int dupeMenu ()
+{
+  int menuin, action_file;
+  char selection, action;
+
+  printf ("[d] delete [m] move [s] skip\n");
+  printf ("Enter action (d/m) and file index, or s to skip: ");
+
+  while ((menuin = getchar ()) != '\n') {
+    selection = (char)menuin;
+    if (selection == 'd' || selection == 'm' || selection == 's')
+      action = selection;
+    else if (menuin > 47 && menuin < 58)
+      action_file = menuin - 48;
+    else
+      continue;
+  }
+
+  if (action == 'd') {
+    return action_file;
+  }
+  else if (action == 'm') {
+    return 0 - action_file;
+  }
+  else if (action == 's')
+    return 0;
+}
+
 signed int getMD5 (dupenode *dupe, char *filename)
 {
   return 0;
+}
+
+void printUsage ()
+{
+  fprintf (stderr, "usage: %s [-p] [directory]\n", programName);
+  return;
 }
